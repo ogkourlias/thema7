@@ -1,0 +1,34 @@
+---
+title: "SP1 Analysis"
+author: "Orfeas Gkourlias"
+date: "3/10/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 3. Exploratory Data Analysis
+
+The data will be need to be extracted from the count file first. Since it's in .tsv format, the seperator is going to be tab based. The inclusion of headers adds an X to the sequence ID's, because R is unable to make headers out of just integers.
+
+## 3.1 Loading the data
+```{r}
+file <- c("..\\data\\GSE152262_RNAseq_Raw_Counts.tsv")
+raw_data <- read.table(file, sep = '\t', header = TRUE)
+raw_data[1:5,]
+dim(raw_data)
+str(raw_data)
+```
+The data is now loaded in as a data frame. Every row shows the raw counts of a specific gene being expressed. 4275, 4277 and 4281 are the variant types. The datatypes are correct in this case. There should only be integers included, except for the gene names.
+
+Now that the data has been properly loaded, objects can be made to differentiate the control and case counts. 
+
+```{r}
+case <- raw_data[,c(1:3,7)]
+control <- raw_data[,c(1,4:6)]
+
+case[1,]
+control[1,]
+```
