@@ -11,12 +11,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # 3. Exploratory Data Analysis
 
-The data will be need to be extracted from the count file first. Since it's in .tsv format, the seperator is going to be tab based. The inclusion of headers adds an X to the sequence ID's, because R is unable to make headers out of just integers.
+The data will be need to be extracted from the count file first. Since it's in .tsv format, the seperator is going to be tab based. The inclusion of headers adds an X to the sequence ID's, because R is unable to make headers out of just integers. To counteract this, the colnames will be manually added.
 
 ## 3.1 Loading the data
 ```{r}
 file <- c("..\\data\\GSE152262_RNAseq_Raw_Counts.tsv")
 raw_data <- read.table(file, sep = '\t', header = TRUE)
+colnames(raw_data) <- c("gene", "case4275", "case4277", "con4279", "con4280", "con4280a", "case4281")
 raw_data[1:5,]
 dim(raw_data)
 str(raw_data)
@@ -32,3 +33,24 @@ control <- raw_data[,c(1,4:6)]
 case[1,]
 control[1,]
 ```
+
+The control and case data is now stored in different variables, as shown above.
+
+## 3.3 Visualizing the data
+More insight on the data can be gained by plotting and summarizing it.
+Every column will first be summarized.
+
+```{r}
+raw_data
+summary(raw_data)
+case$mean = apply(X = case[2:4], MARGIN = 1, FUN = mean)
+control$mean = apply(X = control[2:4], MARGIN = 1, FUN = mean)
+barplot(control$mean[1:5], names = control$gene[1:5], cex.names = 0.6)
+```
+These are not very helpful since these are summaries for every gene. All values are also influenced greatly by outliers.
+
+
+```{r}
+boxplot(raw_data$case4275, raw_data$case4277)
+```
+
