@@ -54,3 +54,7 @@ These are not very helpful since these are summaries for every gene. All values 
 boxplot(raw_data$case4275, raw_data$case4277)
 ```
 
+Pairwise t teast uitvoeren kan maar is omslaschtig.
+One way anova!!!
+
+sd binnen en tussen groepen.
