@@ -1,0 +1,3 @@
+#Pairwise t teast uitvoeren kan maar is omslaschtig.
+#One way anova!!!
+#sd binnen en tussen groepen.

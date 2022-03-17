@@ -7,6 +7,12 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(affy)
+library(scales)
+library(DESeq2)
+library(pheatmap)
+library(ggplot2)
+library(PoiClaClu)
 ```
 
 # 3. Exploratory Data Analysis
@@ -16,45 +22,131 @@ The data will be need to be extracted from the count file first. Since it's in .
 ## 3.1 Loading the data
 ```{r}
 file <- c("..\\data\\GSE152262_RNAseq_Raw_Counts.tsv")
-raw_data <- read.table(file, sep = '\t', header = TRUE)
-colnames(raw_data) <- c("gene", "case4275", "case4277", "con4279", "con4280", "con4280a", "case4281")
+raw_data <- read.table(file, sep = '\t', header = TRUE, row.names = 1)
+colnames(raw_data) <- c("case24275", "case24277", "con4279", "con4280", "con4280a", "case24281")
+raw_data <- raw_data[, c(1,2,6,3,4,5)]
 raw_data[1:5,]
 dim(raw_data)
 str(raw_data)
 ```
-The data is now loaded in as a data frame. Every row shows the raw counts of a specific gene being expressed. 4275, 4277 and 4281 are the variant types. The datatypes are correct in this case. There should only be integers included, except for the gene names.
+The data is now loaded in as a data frame. Every row shows the raw counts of a specific gene being expressed. 4275, 4277 and 4281 are the variant types. The datatypes are correct in this case_log2. There should only be integers included, except for the gene names.
 
-Now that the data has been properly loaded, objects can be made to differentiate the control and case counts. 
+Now that the data has been properly loaded, objects can be made to differentiate the control_log2 and case_log2 counts.
+Before separating the groups, it'll be useful to apply a log2 function to our data. 
+This makes it so that the data is more informative and tidier, because of outliers and the big range being worked with.
 
 ```{r}
-case <- raw_data[,c(1:3,7)]
-control <- raw_data[,c(1,4:6)]
+raw_data_log2 <- log2(raw_data + 1)
 
-case[1,]
-control[1,]
+case <- raw_data[,c(1:3)]
+control <- raw_data[,c(3:6)]
+
+case_log2 <- raw_data_log2[,c(1:3)]
+control_log2 <- raw_data_log2[,c(4:6)]
+
+case_log2[1,]
+control_log2[1,]
 ```
 
-The control and case data is now stored in different variables, as shown above.
+The control_log2 and case_log2 data is now stored in different variables, as shown above.
 
-## 3.3 Visualizing the data
+## Visualizing using boxplot and density plot
 More insight on the data can be gained by plotting and summarizing it.
 Every column will first be summarized.
+Following that, the mean values will be compared in a boxplot.
 
 ```{r}
-raw_data
-summary(raw_data)
-case$mean = apply(X = case[2:4], MARGIN = 1, FUN = mean)
-control$mean = apply(X = control[2:4], MARGIN = 1, FUN = mean)
-barplot(control$mean[1:5], names = control$gene[1:5], cex.names = 0.6)
-```
-These are not very helpful since these are summaries for every gene. All values are also influenced greatly by outliers.
+summary(raw_data_log2)
 
+case_log2$mean = apply(X = case_log2[1:3], MARGIN = 1, FUN = mean)
+control_log2$mean = apply(X = control_log2[1:3], MARGIN = 1, FUN = mean)
+
+case$mean = apply(X = case[1:3], MARGIN = 1, FUN = mean)
+control$mean = apply(X = control[1:3], MARGIN = 1, FUN = mean)
+
+boxplot(control_log2$mean, case_log2$m, outline = FALSE, names = c("control_log2 Mean", "case_log2 Mean"))
+```
+These boxplots are not yet very informative. 
+The only thing that can be seen from them is that the case_log2s have a slightly lower expression level on average
+
+Maybe a density plot allows for a more informative figure.
+```{r}
+myColors <- hue_pal()(6)
+plotDensity(raw_data_log2, col=rep(myColors, each=1), lty=c(1:ncol(raw_data_log2)),
+            main = "Expression Distribution", xlab = "Log2(raw_data_log2 counts)")
+
+legend('topright', names(raw_data_log2), lty=c(1:ncol(raw_data_log2)),
+       col=rep(myColors, each=1))
+```
+As can be seen in the plot, the highest amount of expressions, besides 0, seem to be around 10.
+
+## 3.4 Visualizing using heatmap and MDS
+Before continuing with this step, the data will have to be normalized.
+There are 5 which rows are not actual genes. They will be removed.
+After that, a barplot will be generated to show whether theres a difference in expression in millions, using col sums.
 
 ```{r}
-boxplot(raw_data$case4275, raw_data$case4277)
+remove_rows <- c("__not_aligned", "__no_feature", "__no_feature", 
+                 "__alignment_not_unique", "__too_low_aQual", "__ambiguous")
+raw_data <- raw_data[!(row.names(raw_data) %in% remove_rows),]
+barplot(colSums(raw_data) / 1e6, las = 2, cex.names = 0.8, col = myColors, xlab = "Genes", ylab = "Expression in millions")
 ```
 
-Pairwise t teast uitvoeren kan maar is omslaschtig.
-One way anova!!!
+Judging by that figure, the control group seems to have a higher average expression when summarised on all genes.
 
-sd binnen en tussen groepen.
+Now the DESeq2 library will be used to normalize the data. the VST function within this package is the next function.
+The data will first have to make a Summarized Experiment object, which is done first.
+
+```{r}
+(ddsMat <- DESeqDataSetFromMatrix(countData = raw_data,
+                                  colData = data.frame(samples = names(raw_data)),
+                                  design = ~ 1))
+
+rld.dds <- vst(ddsMat)
+rld <- assay(rld.dds)
+```
+Distance  calculation may now be performed on the normalized data.
+The matrix will first have to be transposed.
+After distance calculations have been performed, a heatmap may be constructed.
+```{r}
+sampledists <- dist( t( rld ))
+sampleDistMatrix <- as.matrix(sampledists)
+
+annotation <- data.frame(case = factor(rep(1:3, each = 1), 
+                                          labels = c("case24275", "case24277", "case24281")),
+                         control = factor(rep(rep(1:3, each = 2), 1),
+                                         labels = c("con4279", "con4280", "con4280a")))
+
+rownames(annotation) <- names(raw_data)
+
+pheatmap(sampleDistMatrix, show_colnames = FALSE,
+         annotation_col = annotation,
+         clustering_distance_rows = sampledists,
+         clustering_distance_cols = sampledists,
+         main = "Euclidean Sample Distances")
+```
+The resulting heatmap shows where the large differences in expression are located.
+
+The distances can also be shown using a 2d-plot, by performing multi dimensional scaling.
+```{r}
+dds <- assay(ddsMat)
+poisd <- PoissonDistance( t(dds), type = "deseq")
+samplePoisDistMatrix <- as.matrix(poisd$dd)
+mdsPoisData <- data.frame( cmdscale(samplePoisDistMatrix) )
+
+names(mdsPoisData) <- c('x_coord', 'y_coord')
+
+groups <- factor(rep(1:6, each=1), 
+                 labels = names(raw_data))
+coldata <- names(raw_data)
+
+ggplot(mdsPoisData, aes(x_coord, y_coord, color = groups, label = coldata)) + 
+  geom_text(size = 4) +
+  ggtitle('Multi Dimensional Scaling') +
+  labs(x = "Poisson Distance", y = "Poisson Distance") +
+  theme_bw()
+```
+## 3.5 Cleaning Data
+After examination of the case and control groups, there shouldn't be any samples removed.
+This would also not be possible, because at least 3 samples are required per group.
+
