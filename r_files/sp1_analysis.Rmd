@@ -22,10 +22,20 @@ The data will be need to be extracted from the count file first. Since it's in .
 ## 3.1 Loading the data
 ```{r}
 file <- c("..\\data\\GSE152262_RNAseq_Raw_Counts.tsv")
+# Raw_Data will be the primary dataframe that gets worked on.
 raw_data <- read.table(file, sep = '\t', header = TRUE, row.names = 1)
+
+# The first two and single last columns are the case samples.
+# Control samples are indicated with con.
 colnames(raw_data) <- c("case24275", "case24277", "con4279", "con4280", "con4280a", "case24281")
+
+# Rearranging the columns so that the first three are the case samples.
 raw_data <- raw_data[, c(1,2,6,3,4,5)]
+
+# Showing the first five rows as an example.
 raw_data[1:5,]
+
+# Showing the dimension and structure of the raw_data dataframe.
 dim(raw_data)
 str(raw_data)
 ```
@@ -36,14 +46,19 @@ Before separating the groups, it'll be useful to apply a log2 function to our da
 This makes it so that the data is more informative and tidier, because of outliers and the big range being worked with.
 
 ```{r}
+# Transforming the read data of every columns to the log2 value
+# 1 is added to every column to make sure there are no log2(0) values.
 raw_data_log2 <- log2(raw_data + 1)
 
+# Dividing the case and controls columns into seperate dataframes for later use.
 case <- raw_data[,c(1:3)]
 control <- raw_data[,c(3:6)]
 
+# Applying the same division, but with the log values for plotting purposes.
 case_log2 <- raw_data_log2[,c(1:3)]
 control_log2 <- raw_data_log2[,c(4:6)]
 
+# Displaying the first rows of divided dataframes.
 case_log2[1,]
 control_log2[1,]
 ```
@@ -56,14 +71,19 @@ Every column will first be summarized.
 Following that, the mean values will be compared in a boxplot.
 
 ```{r}
+# Applying a summary on all the log2 data.
 summary(raw_data_log2)
 
+# Getting the mean values of both controlled and case sample expression values
+# For every gene. This might be useful later.
 case_log2$mean = apply(X = case_log2[1:3], MARGIN = 1, FUN = mean)
 control_log2$mean = apply(X = control_log2[1:3], MARGIN = 1, FUN = mean)
 
+# Doing the same to the raw data frames.
 case$mean = apply(X = case[1:3], MARGIN = 1, FUN = mean)
 control$mean = apply(X = control[1:3], MARGIN = 1, FUN = mean)
 
+# Plotting the log2 data.
 boxplot(control_log2$mean, case_log2$m, outline = FALSE, names = c("control_log2 Mean", "case_log2 Mean"))
 ```
 These boxplots are not yet very informative. 
@@ -71,10 +91,14 @@ The only thing that can be seen from them is that the case_log2s have a slightly
 
 Maybe a density plot allows for a more informative figure.
 ```{r}
+# Creating the recurring colors that will be used for the columns
 myColors <- hue_pal()(6)
+
+# Density plotting the log2 data, using the colors created above.
 plotDensity(raw_data_log2, col=rep(myColors, each=1), lty=c(1:ncol(raw_data_log2)),
             main = "Expression Distribution", xlab = "Log2(raw_data_log2 counts)")
 
+# Adding a legend for clarity.
 legend('topright', names(raw_data_log2), lty=c(1:ncol(raw_data_log2)),
        col=rep(myColors, each=1))
 ```
@@ -86,9 +110,13 @@ There are 5 which rows are not actual genes. They will be removed.
 After that, a barplot will be generated to show whether theres a difference in expression in millions, using col sums.
 
 ```{r}
+# There are 5 rows which do not count for actual genes.
+# These rows are currently not relevant, but shouldn't be present from now on.
 remove_rows <- c("__not_aligned", "__no_feature", "__no_feature", 
                  "__alignment_not_unique", "__too_low_aQual", "__ambiguous")
 raw_data <- raw_data[!(row.names(raw_data) %in% remove_rows),]
+
+# Bar plotting the new data. Division by 1e6 shows the values in millions.
 barplot(colSums(raw_data) / 1e6, las = 2, cex.names = 0.8, col = myColors, xlab = "Genes", ylab = "Expression in millions")
 ```
 
@@ -98,27 +126,35 @@ Now the DESeq2 library will be used to normalize the data. the VST function with
 The data will first have to make a Summarized Experiment object, which is done first.
 
 ```{r}
+# Creating the dds Matrix, so that it ca nbe used in the vst function
 (ddsMat <- DESeqDataSetFromMatrix(countData = raw_data,
-                                  colData = data.frame(samples = names(raw_data)),
+                                  colData = data.frame(samples=names(raw_data)),
                                   design = ~ 1))
 
+# Applying vst and saving it into the rld.dds object.
 rld.dds <- vst(ddsMat)
+
+# Applying assay on that object then saving it into rld.
 rld <- assay(rld.dds)
 ```
 Distance  calculation may now be performed on the normalized data.
 The matrix will first have to be transposed.
 After distance calculations have been performed, a heatmap may be constructed.
 ```{r}
+# To create the heatmap, distances first get calculated & stored in a matrix
 sampledists <- dist( t( rld ))
 sampleDistMatrix <- as.matrix(sampledists)
 
+# Annotation dataframe gets created for heatmap.
 annotation <- data.frame(case = factor(rep(1:3, each = 1), 
                                           labels = c("case24275", "case24277", "case24281")),
                          control = factor(rep(rep(1:3, each = 2), 1),
                                          labels = c("con4279", "con4280", "con4280a")))
 
+# Rownames for the annotation get taken from raw_data.
 rownames(annotation) <- names(raw_data)
 
+# Heatmap function gets called on the matrix and annotation objects.
 pheatmap(sampleDistMatrix, show_colnames = FALSE,
          annotation_col = annotation,
          clustering_distance_rows = sampledists,
@@ -129,17 +165,23 @@ The resulting heatmap shows where the large differences in expression are locate
 
 The distances can also be shown using a 2d-plot, by performing multi dimensional scaling.
 ```{r}
+# Creating the objects required by ggplot for mds.
 dds <- assay(ddsMat)
 poisd <- PoissonDistance( t(dds), type = "deseq")
 samplePoisDistMatrix <- as.matrix(poisd$dd)
 mdsPoisData <- data.frame( cmdscale(samplePoisDistMatrix) )
 
+# Creating names for the coords.
 names(mdsPoisData) <- c('x_coord', 'y_coord')
 
+# Getting the columns as factors.
 groups <- factor(rep(1:6, each=1), 
                  labels = names(raw_data))
+
+# Column name extraction.
 coldata <- names(raw_data)
 
+# Plotting the distance data in a 2d plot with ggplot.
 ggplot(mdsPoisData, aes(x_coord, y_coord, color = groups, label = coldata)) + 
   geom_text(size = 4) +
   ggtitle('Multi Dimensional Scaling') +
@@ -149,4 +191,47 @@ ggplot(mdsPoisData, aes(x_coord, y_coord, color = groups, label = coldata)) +
 ## 3.5 Cleaning Data
 After examination of the case and control groups, there shouldn't be any samples removed.
 This would also not be possible, because at least 3 samples are required per group.
+
+# 4 Discovering Differentialy Expressed Genes (DEGs)    
+Proceeding all the insight gained from plotting the data, it may now all be analysed in R. The purpose being is the discovery of DEGs, differentialy expressed genes. The earlier plots showed that there will most likely be plenty of those. The observed mutation also causes a frame shift, increasing the likelihood of DEGs greatly.. Before performing the analysis steps, the data will need to go through a pre-processing phase.
+
+## 4.1 Pre-processing
+First, the FPM, fragments per million mapped fragments, will be calculated for every row/gene.
+
+```{r}
+# Applying the FPM calculation then creating a data frame out of it.
+raw_data.fpm <- log2( (raw_data/ (colSums(raw_data) / 1e6 )) + 1)
+```
+
+There are quite a lot of inactive genes within the dataset.
+Filtering these out will help in further analysis.
+The paper does not provide a method for filtering out these genes.
+First, the most fitting method will have to be chosen.
+
+Let's first see what the actual sum values are of all the genes.
+
+```{r}
+# Make a column which sums up the log2 reads.
+raw_data.fpm$sum = apply(X = raw_data.fpm, MARGIN = 1, FUN = sum)
+
+# Calculating the percentage of genes with a total of 0 counts across all groups
+sum(raw_data.fpm$sum == 0) / nrow(raw_data.fpm) * 100
+```
+The calculation above returns a value of 40.55.
+So 40.55% of the genes have not been expressed in any group or sample.
+Before applying other calculations to detect more inactive genes, it can be concluded that this 40% is surely inactive.
+It's therefore safe to remove.
+
+There's not a definitive answer as to when a gene may be considered inactive and irrelevant.
+Discussion is still ongoing, but an answer that was observed multiple times is that an FPM sum above 0.5 indicates a statistically considerable gene.
+Let's see how much of the data is retained if everything below 0.5 would be removed.
+```{r}
+sum(raw_data.fpm$sum > 0.5)
+sum(raw_data.fpm$sum > 0.5) / nrow(raw_data.fpm) * 100
+```
+This would result in 21586 genes remaining for further analysis. Which is 37.02% of the original data.
+While the percentage is a little low, it's still 21 thousand genes, which is enough for analysis.
+```{r}
+raw_data.fpm <- raw_data.fpm[raw_data.fpm$sum > 0.5,]
+```
 
