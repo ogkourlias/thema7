@@ -5,7 +5,7 @@ date: "3/10/2022"
 output: pdf_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, results='hide', message=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(affy)
 library(scales)
@@ -257,4 +257,17 @@ As can be seen in the histogram, there are quite some LFC values higher than 1, 
 ## 4.3 Using Bioconductor Packages
 It's now possible to perform T tests to determine which genes are significantly different in expression. Instead of doing this manually, bioconductor packages can be utilized. Because this experiment used edgeR, it will also be used here.
 
+The raw_data data frame will need to be used again, since edgeR requires the raw counts. Before trying to detect DEGs, some filtering can be applied to make the results more significant. As discussed in 4.1, filtering out low counts tends to be beneficial. edgeR has a built in function which uses it's own filtering algorithm to remove these low counts. This will be done after the dataframe has been converted to the appropriate format, the DGElist
+
+```{r}
+# Defining the DGElist object.Group indicates which rows are cases/control.
+dge <- DGEList(counts = raw_data, group = c(1,1,1,2,2,2))
+# Showing the amount of rows read from the raw counts (All rows).
+nrow(dge)
+# Marking the rows that should be kept because they have sufficient expression levels
+keep <- filterByExpr(dge)
+# Only keeping the rows which have sufficient expression. Showing the amount of rows kept.
+dge <- dge[keep, , keep.lib.sizes=FALSE]
+nrow(dge)
+```
 
