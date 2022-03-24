@@ -13,6 +13,7 @@ library(DESeq2)
 library(pheatmap)
 library(ggplot2)
 library(PoiClaClu)
+library(edgeR)
 ```
 
 # 3. Exploratory Data Analysis
@@ -234,4 +235,26 @@ While the percentage is a little low, it's still 21 thousand genes, which is eno
 ```{r}
 raw_data.fpm <- raw_data.fpm[raw_data.fpm$sum > 0.5,]
 ```
+
+# 4.2 The Fold Change Value
+To gain insight into how the control and experiment groups differ in expression, a FC value will be calculated. First, to calculate the FC values, the averages will be calculated. These will be subtracted from eachother to get a LFC value. The FC value but with log2 applied.
+```{r}
+# Calculating the means and savin them in columns
+raw_data.fpm$case_avg = apply(X = raw_data.fpm[,1:3], MARGIN = 1, FUN = mean)
+raw_data.fpm$con_avg = apply(X = raw_data.fpm[,4:6], MARGIN = 1, FUN = mean)
+
+# Calculating the LFC values.
+raw_data.fpm$lfc = raw_data.fpm$case_avg - raw_data.fpm$con_avg
+```
+
+Following this, a histogram may be made out of the new values.
+```{r}
+hist(raw_data.fpm$lfc, breaks = 60)
+abline(v = -1:1)
+```
+As can be seen in the histogram, there are quite some LFC values higher than 1, indicating that there is indeed increased expression on multiple genes. 
+
+## 4.3 Using Bioconductor Packages
+It's now possible to perform T tests to determine which genes are significantly different in expression. Instead of doing this manually, bioconductor packages can be utilized. Because this experiment used edgeR, it will also be used here.
+
 
