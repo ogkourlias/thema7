@@ -270,4 +270,19 @@ keep <- filterByExpr(dge)
 dge <- dge[keep, , keep.lib.sizes=FALSE]
 nrow(dge)
 ```
+Now that the DGE object has been created and low counts have been filtered out, further normalization can be applied. In the case of this experiment, that wont be needed.
+
+The classic edgeR pipeline will be followed here, since there's nothing that needs to be done to the count data after the filtering done above. The first step of the pipeline is to calculate gene dispersions. This can be done using the estimtaeDisp function.
+
+```{r}
+dge <- estimateDisp(dge)
+dge
+```
+Now that the dispersions have been calculated, testing for the DE genes may be performed. This is done by using the ExactTest function, which looks at the two groups and performs a t.test, to then determine the P value. The genes which get assigned a P value of less than 0.05 shall be stored in a results dataframe. In order of lowest to highest P value.
+
+```{r}
+et <- exactTest(dge, pair=c(1,2))
+res <- topTags(et, n = Inf, p = 0.05)$table
+```
+
 
