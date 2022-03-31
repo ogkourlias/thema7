@@ -14,6 +14,7 @@ library(pheatmap)
 library(ggplot2)
 library(PoiClaClu)
 library(edgeR)
+library(EnhancedVolcano)
 ```
 
 # 3. Exploratory Data Analysis
@@ -93,7 +94,7 @@ The only thing that can be seen from them is that the case_log2s have a slightly
 Maybe a density plot allows for a more informative figure.
 ```{r}
 # Creating the recurring colors that will be used for the columns
-myColors <- hue_pal()(6)
+myColors <- hue_pal()(2)
 
 # Density plotting the log2 data, using the colors created above.
 plotDensity(raw_data_log2, col=rep(myColors, each=1), lty=c(1:ncol(raw_data_log2)),
@@ -101,7 +102,7 @@ plotDensity(raw_data_log2, col=rep(myColors, each=1), lty=c(1:ncol(raw_data_log2
 
 # Adding a legend for clarity.
 legend('topright', names(raw_data_log2), lty=c(1:ncol(raw_data_log2)),
-       col=rep(myColors, each=1))
+       col=rep(myColors, each=3))
 ```
 As can be seen in the plot, the highest amount of expressions, besides 0, seem to be around 10.
 
@@ -118,7 +119,7 @@ remove_rows <- c("__not_aligned", "__no_feature", "__no_feature",
 raw_data <- raw_data[!(row.names(raw_data) %in% remove_rows),]
 
 # Bar plotting the new data. Division by 1e6 shows the values in millions.
-barplot(colSums(raw_data) / 1e6, las = 2, cex.names = 0.8, col = myColors, xlab = "Genes", ylab = "Expression in millions")
+barplot(colSums(raw_data) / 1e6, las = 2, cex.names = 0.8, col = c(rep(myColors[1],3), rep(myColors[2],3)), xlab = "Genes", ylab = "Expression in millions")
 ```
 
 Judging by that figure, the control group seems to have a higher average expression when summarised on all genes.
@@ -147,9 +148,7 @@ sampledists <- dist( t( rld ))
 sampleDistMatrix <- as.matrix(sampledists)
 
 # Annotation dataframe gets created for heatmap.
-annotation <- data.frame(case = factor(rep(1:3, each = 1), 
-                                          labels = c("case24275", "case24277", "case24281")),
-                         control = factor(rep(rep(1:3, each = 2), 1),
+annotation <- data.frame(control = factor(rep(rep(1:3, each = 2), 1),
                                          labels = c("con4279", "con4280", "con4280a")))
 
 # Rownames for the annotation get taken from raw_data.
@@ -261,7 +260,7 @@ The raw_data data frame will need to be used again, since edgeR requires the raw
 
 ```{r}
 # Defining the DGElist object.Group indicates which rows are cases/control.
-dge <- DGEList(counts = raw_data, group = c(1,1,1,2,2,2))
+dge <- DGEList(counts = raw_data, group = c(2,2,2,1,1,1))
 # Showing the amount of rows read from the raw counts (All rows).
 nrow(dge)
 # Marking the rows that should be kept because they have sufficient expression levels
@@ -275,14 +274,51 @@ Now that the DGE object has been created and low counts have been filtered out, 
 The classic edgeR pipeline will be followed here, since there's nothing that needs to be done to the count data after the filtering done above. The first step of the pipeline is to calculate gene dispersions. This can be done using the estimtaeDisp function.
 
 ```{r}
+dge <- calcNormFactors(dge)
 dge <- estimateDisp(dge)
 dge
 ```
-Now that the dispersions have been calculated, testing for the DE genes may be performed. This is done by using the ExactTest function, which looks at the two groups and performs a t.test, to then determine the P value. The genes which get assigned a P value of less than 0.05 shall be stored in a results dataframe. In order of lowest to highest P value.
+Now that the dispersions have been calculated, testing for the DE genes may be performed. This is done by using the ExactTest function, which looks at the two groups and performs a t.test, to then determine the P value. The genes which get assigned a P value of less than 0.01 shall be stored in a results dataframe. 0.01 Was used in the paper. In order of lowest to highest P value. The are the adjusted P values.
 
 ```{r}
 et <- exactTest(dge, pair=c(1,2))
-res <- topTags(et, n = Inf, p = 0.05)$table
+res <- topTags(et, n = Inf, p = 0.01)$table
 ```
+
+Now the significant DEGs have been selected and assigned with LogFC values.
+Further analysis can be done by plotting the results.
+
+# 5 Data Analysis and Visualization
+There's multiple ways to display the DEGs. Since the data set consist of gene counts for every gene, there'll be too many rows to properly display for some visualizations.
+It might be beneficial to therefore look at the pathways to which these important genes belong to. But, a volcano plot can still be made out of the initial results.
+
+## 5.1 Volcano Plot
+A volcano plot can show which DEGs are of most importance with the given LogFC values. 
+The paper also contains a volcano plot, which has a FC cutoff of 2. This cutoff point will also be used here.
+
+
+```{r}
+sum(res$logFC < 0)
+
+deseq.volcano <- function(res, datasetName) {
+  return(EnhancedVolcano(res, x = 'logFC', y = 'FDR',
+                         lab=rownames(res),
+                         title = paste(datasetName, "trisomic vs disomic"),
+                         subtitle = bquote(italic('FDR <= 0.05 and absolute FC >= 2')),
+                         # Change text and icon sizes
+                         labSize = 3, pointSize = 1.5, axisLabSize=10, titleLabSize=12,
+                         subtitleLabSize=8, captionLabSize=10,
+                         # Disable legend
+                         legendPosition = "none",
+                         # Set cutoffs
+                         pCutoff = 0.01, FCcutoff = 2))
+}
+
+deseq.volcano(res = res, datasetName = "res")
+
+```
+
+
+
 
 
