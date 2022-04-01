@@ -148,8 +148,8 @@ sampledists <- dist( t( rld ))
 sampleDistMatrix <- as.matrix(sampledists)
 
 # Annotation dataframe gets created for heatmap.
-annotation <- data.frame(control = factor(rep(rep(1:3, each = 2), 1),
-                                         labels = c("con4279", "con4280", "con4280a")))
+annotation <- data.frame(control = factor(c(1:6),
+                                         labels = c(names(raw_data))))
 
 # Rownames for the annotation get taken from raw_data.
 rownames(annotation) <- names(raw_data)
@@ -303,8 +303,8 @@ sum(res$logFC < 0)
 deseq.volcano <- function(res, datasetName) {
   return(EnhancedVolcano(res, x = 'logFC', y = 'FDR',
                          lab=rownames(res),
-                         title = paste(datasetName, "trisomic vs disomic"),
-                         subtitle = bquote(italic('FDR <= 0.05 and absolute FC >= 2')),
+                         title = paste(datasetName, "Case vs Control"),
+                         subtitle = bquote(italic('FDR <= 0.01 and absolute FC >= 2')),
                          # Change text and icon sizes
                          labSize = 3, pointSize = 1.5, axisLabSize=10, titleLabSize=12,
                          subtitleLabSize=8, captionLabSize=10,
@@ -317,7 +317,21 @@ deseq.volcano <- function(res, datasetName) {
 deseq.volcano(res = res, datasetName = "res")
 
 ```
+There's a significant upstream regulation of the genes in the case samples, as can be seen in the volcano plot.
+So far, the analysis has been performed on the individual DEGs.
+While these can be examined on their own, it would be more insightful at this point to look at the relevant pathways the genes may be part of.
 
+## 5.2 Gene Functional Classification using DAVID.
+To find which pathways the DEGs belong to, DAVID will be used.
+DAVID requires the user to upload a list or file with the genes. Multiple differnt identifiers for the genes can be used, including ensembl ID.
+Because all the genes in this experiment have been annotated by their ensembl IDs.
+
+The rownames will first be extracted and sent to the DAVID website.
+
+```{r}
+ensembl <- row.names(res)
+write.table(ensembl, file = "ensembl.txt", row.names = FALSE, col.names = FALSE)
+```
 
 
 
