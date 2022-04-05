@@ -15,6 +15,7 @@ library(ggplot2)
 library(PoiClaClu)
 library(edgeR)
 library(EnhancedVolcano)
+library(pathview)
 ```
 
 # 3. Exploratory Data Analysis
@@ -330,8 +331,39 @@ The rownames will first be extracted and sent to the DAVID website.
 
 ```{r}
 ensembl <- row.names(res)
-write.table(ensembl, file = "ensembl.txt", row.names = FALSE, col.names = FALSE)
+write.table(ensembl, file = "ensembl.txt", row.names = FALSE, col.names = FALSE, quote = FALSE)
 ```
+
+The text file created can be uploaded to DAVID.
+Extracing the pathway results into a chart allows a representing file to be downloaded. The contents of the file are as follows:
+
+```{r}
+pathways <- read.table('chart.txt', header = TRUE, sep = '\t')
+pathways[1:5]
+```
+asdf
+
+```{r}
+pathways$pathway.id <- sapply(strsplit(pathways$Term, ":"), function(splitted) return(splitted[1]))
+pathways$pathway.name <- sapply(strsplit(pathways$Term, ":"), function(splitted) return(splitted[2]))
+names(pathways)[4] <- "Percentage"
+```
+
+asdf
+
+```{r}
+par(mar=c(2,10,2,2))
+barplot(height = -log10(pathways$PValue)[1:10], names.arg = pathways$pathway.id[1:10], horiz = TRUE, las=2)
+pathways$pathway.name[1:10]
+```
+
+asdf
+
+```{r}
+#heatmap?
+```
+
+
 
 
 
