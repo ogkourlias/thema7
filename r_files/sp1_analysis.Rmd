@@ -4,7 +4,10 @@ author: "Orfeas Gkourlias"
 date: "3/10/2022"
 output: pdf_document
 ---
-
+This markdown document aims to utilize R to discover, analyse and sketch DEG data.
+All the data used can be found in the corresponding git repo.
+Before getting started with the data, all libraries will need to be loaded in first.
+Most of these are Bioconductor packages.
 ```{r setup, results='hide', message=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(affy)
@@ -16,6 +19,8 @@ library(PoiClaClu)
 library(edgeR)
 library(EnhancedVolcano)
 library(pathview)
+library(pander)
+library(SPIA)
 ```
 
 # 3. Exploratory Data Analysis
@@ -38,7 +43,7 @@ raw_data <- raw_data[, c(1,2,6,3,4,5)]
 # Showing the first five rows as an example.
 raw_data[1:5,]
 
-# Showing the dimension and structure of the raw_data dataframe.
+# Showing the dimension and structure of the raw_data data frame.
 dim(raw_data)
 str(raw_data)
 ```
@@ -53,7 +58,7 @@ This makes it so that the data is more informative and tidier, because of outlie
 # 1 is added to every column to make sure there are no log2(0) values.
 raw_data_log2 <- log2(raw_data + 1)
 
-# Dividing the case and controls columns into seperate dataframes for later use.
+# Dividing the case and controls columns into separate data frames for later use.
 case <- raw_data[,c(1:3)]
 control <- raw_data[,c(3:6)]
 
@@ -61,17 +66,17 @@ control <- raw_data[,c(3:6)]
 case_log2 <- raw_data_log2[,c(1:3)]
 control_log2 <- raw_data_log2[,c(4:6)]
 
-# Displaying the first rows of divided dataframes.
+# Displaying the first rows of divided data frames.
 case_log2[1,]
 control_log2[1,]
 ```
 
 The control_log2 and case_log2 data is now stored in different variables, as shown above.
 
-## Visualizing using boxplot and density plot
+## 3.3 Visualizing using boxplot and density plot
 More insight on the data can be gained by plotting and summarizing it.
 Every column will first be summarized.
-Following that, the mean values will be compared in a boxplot.
+Following that, the mean values will be compared in a box plot.
 
 ```{r}
 # Applying a summary on all the log2 data.
@@ -87,7 +92,8 @@ case$mean = apply(X = case[1:3], MARGIN = 1, FUN = mean)
 control$mean = apply(X = control[1:3], MARGIN = 1, FUN = mean)
 
 # Plotting the log2 data.
-boxplot(control_log2$mean, case_log2$m, outline = FALSE, names = c("control_log2 Mean", "case_log2 Mean"))
+boxplot(control_log2$mean, case_log2$m, outline = FALSE,
+        names = c("control_log2 Mean", "case_log2 Mean"))
 ```
 These boxplots are not yet very informative. 
 The only thing that can be seen from them is that the case_log2s have a slightly lower expression level on average
@@ -98,8 +104,10 @@ Maybe a density plot allows for a more informative figure.
 myColors <- hue_pal()(2)
 
 # Density plotting the log2 data, using the colors created above.
-plotDensity(raw_data_log2, col=rep(myColors, each=1), lty=c(1:ncol(raw_data_log2)),
-            main = "Expression Distribution", xlab = "Log2(raw_data_log2 counts)")
+plotDensity(raw_data_log2, col=rep(myColors, each=1),
+            lty=c(1:ncol(raw_data_log2)),
+            main = "Expression Distribution",
+            xlab = "Log2(raw_data_log2 counts)")
 
 # Adding a legend for clarity.
 legend('topright', names(raw_data_log2), lty=c(1:ncol(raw_data_log2)),
@@ -142,20 +150,20 @@ rld <- assay(rld.dds)
 ```
 Distance  calculation may now be performed on the normalized data.
 The matrix will first have to be transposed.
-After distance calculations have been performed, a heatmap may be constructed.
+After distance calculations have been performed, a heat map may be constructed.
 ```{r}
 # To create the heatmap, distances first get calculated & stored in a matrix
 sampledists <- dist( t( rld ))
 sampleDistMatrix <- as.matrix(sampledists)
 
 # Annotation dataframe gets created for heatmap.
-annotation <- data.frame(control = factor(c(1:6),
+annotation <- data.frame(group = factor(c(1:6),
                                          labels = c(names(raw_data))))
 
 # Rownames for the annotation get taken from raw_data.
 rownames(annotation) <- names(raw_data)
 
-# Heatmap function gets called on the matrix and annotation objects.
+# Heat map function gets called on the matrix and annotation objects.
 pheatmap(sampleDistMatrix, show_colnames = FALSE,
          annotation_col = annotation,
          clustering_distance_rows = sampledists,
@@ -322,12 +330,12 @@ There's a significant upstream regulation of the genes in the case samples, as c
 So far, the analysis has been performed on the individual DEGs.
 While these can be examined on their own, it would be more insightful at this point to look at the relevant pathways the genes may be part of.
 
-## 5.2 Gene Functional Classification using DAVID.
+## 5.2 Pathway Analysis
 To find which pathways the DEGs belong to, DAVID will be used.
-DAVID requires the user to upload a list or file with the genes. Multiple differnt identifiers for the genes can be used, including ensembl ID.
+DAVID requires the user to upload a list or file with the genes. Multiple different identifiers for the genes can be used, including ensembl ID.
 Because all the genes in this experiment have been annotated by their ensembl IDs.
 
-The rownames will first be extracted and sent to the DAVID website.
+The row names will first be extracted and sent to the DAVID website.
 
 ```{r}
 ensembl <- row.names(res)
@@ -335,33 +343,107 @@ write.table(ensembl, file = "ensembl.txt", row.names = FALSE, col.names = FALSE,
 ```
 
 The text file created can be uploaded to DAVID.
-Extracing the pathway results into a chart allows a representing file to be downloaded. The contents of the file are as follows:
+Extracting the pathway results into a chart allows a representing file to be downloaded. The contents of the file are as follows:
 
 ```{r}
 pathways <- read.table('chart.txt', header = TRUE, sep = '\t')
-pathways[1:5]
+pathways[1:5,]
 ```
-asdf
+As can be seen above, these are the five most significant pathway entries in this experiment.
+Pathway analysis, when done diligently, can be used to draw some conclusions.
+The following code will be dedicated to trying to gain more understanding in how these pathways affect the phenotype.
+Some extra columns will first be added for clarity.
 
 ```{r}
+# Copying the ID from the term column.
 pathways$pathway.id <- sapply(strsplit(pathways$Term, ":"), function(splitted) return(splitted[1]))
+# Copying the name from the term column.
 pathways$pathway.name <- sapply(strsplit(pathways$Term, ":"), function(splitted) return(splitted[2]))
+# Assigning the X marked column name with an actual name.
 names(pathways)[4] <- "Percentage"
 ```
 
-asdf
+The most 10 most significant pathways may now be displayed in a simple plot.
 
 ```{r}
-par(mar=c(2,10,2,2))
-barplot(height = -log10(pathways$PValue)[1:10], names.arg = pathways$pathway.id[1:10], horiz = TRUE, las=2)
-pathways$pathway.name[1:10]
+# Adjusting the margins because of the long names
+par(mar=c(4,18,2,1))
+barplot(height = -log10(pathways$PValue)[1:10],
+        names.arg = pathways$pathway.name[1:10],
+        horiz = TRUE, las=1, xlab = 'P-value log10',
+        cex.names = 0.8,
+        cex.lab = 0.75)
 ```
-
-asdf
+While the results may be promising, not only the top 10 results should be considered. There's another 81 relevant pathways.
+Pathview from bioconductor may offer a more complete picture for an entire pathway analsysis.
 
 ```{r}
-#heatmap?
+# Taking the data from the human pathways.
+data("paths.hsa")
+# Displaying 5 of the pathways.
+pander(head(paths.hsa, n=5))
 ```
+Showing an example of some of the the pathways which are available in humans(First 5).
+The structure of the paths data is as follows:
+
+```{r}
+data(gene.idtype.list); 
+pander(gene.idtype.list)
+```
+
+Now the experiments data will need to be prepared for the package operations.
+The data set the experiment provides dose not have entrez IDs. The ensembl IDs will have to converted to entrez equivelants.
+
+```{r}
+# Selecting for rows with an FDR lower than 0.01.
+res.logFC <- subset(res, FDR < 0.01, select = logFC)
+# The ID problem being resolved by the id2eg function.
+res.logFC$entrez <- id2eg(ids = rownames(res.logFC), org = "Hs", category = "ENSEMBL")[,2]
+# The above function does not remove NA. Doing it manually here.
+res.logFC.ent <- subset(res.logFC, !(is.na(entrez)) )
+# Now the rownames may be extracted and used.
+rownames(res.logFC.ent) <- res.logFC.ent$entrez
+# The row names are now entrez, so the column gets removed.
+res.logFC.ent$entrez = NULL
+```
+The prepared data may be given to path view now.
+Significant up-regulation had been observed in genes relevant to signaling pathways.
+The two highest count pathways are related to cancer and chemokine signaling.
+Both of which are quite relevant to the paper. These will therefore be used in pathview.
+```{r}
+pathview(gene.data=res.logFC.ent,
+         pathway.id = c("05200","04062"),
+         species="hsa"
+)
+```
+The resulting pathway analysis for hsa04062.
+![Pathway](hsa04062.pathview.png)
+The resulting pathway analysis for hsa05200.
+![Pathway](hsa05200.pathview.png)
+  
+There's several affected molecules in these pathways, showing significant up regulation.
+The coloring is based on the corresponding logFC values.
+
+To close off this experiment, the topology of how gene interactions will be examined.
+The SPIA Bioconductor package is used in the following examinations.
+```{r}
+# Get a vector of log(FC) values for all significant genes
+sig_genes <- res.logFC.ent[,1]
+# Make it a named vector by assigning the Entrez ID's to each log(FC) value
+names(sig_genes) <- rownames(res.logFC.ent)
+# A complete list of Entrez IDs for all genes in this experiment
+all_genes <- id2eg(ids = rownames(raw_data), org = "Hs", category = "ENSEMBL", na.rm=TRUE)[,2]
+all_genes <- all_genes[!is.na(all_genes)]
+spia_result <- spia(de=sig_genes, all=all_genes, organism="hsa", plots = TRUE)
+```
+This concluded the experiment. Now, to show some of the results of the SPIA function:
+
+```{r}
+spia_result[1:5]
+```
+
+
+
 
 
 
