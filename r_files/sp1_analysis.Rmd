@@ -419,18 +419,15 @@ pathview(gene.data=res.logFC.ent,
 )
 ```
 
-![Pathway](hsa04062.pathview.png)
+The resulting pathway analysis for hsa04062 and hsa05200 can be seen at the end of the document, because of R markdown delays.
 
-![Pathway](hsa05200.pathview.png)
-
-The resulting pathway analysis for hsa04062 and hsa05200 above. 
   
 There's several affected molecules in these pathways, showing significant up regulation.
 The coloring is based on the corresponding logFC values.
 
 To close off this experiment, the topology of how gene interactions will be examined.
 The SPIA Bioconductor package is used in the following examinations.
-```{r, echo=FALSE, results='HIDE', message=FALSE}
+```{r, echo=FALSE,warning=FALSE,message=FALSE,error=FALSE}
 # Get a vector of log(FC) values for all significant genes
 sig_genes <- res.logFC.ent[,1]
 # Make it a named vector by assigning the Entrez ID's to each log(FC) value
@@ -438,6 +435,7 @@ names(sig_genes) <- rownames(res.logFC.ent)
 # A complete list of Entrez IDs for all genes in this experiment
 all_genes <- id2eg(ids = rownames(raw_data), org = "Hs", category = "ENSEMBL", na.rm=TRUE)[,2]
 all_genes <- all_genes[!is.na(all_genes)]
+# Tried to hide the following console output, but it looks like it doesnt work.
 spia_result <- spia(de=sig_genes, all=all_genes, organism="hsa", plots = TRUE)
 ```
 This concluded the experiment. Now, to show some of the results of the SPIA function:
@@ -445,6 +443,11 @@ This concluded the experiment. Now, to show some of the results of the SPIA func
 ```{r}
 spia_result[1:5,1:4]
 ```
+# 5.3 Pathview Results
+
+![Pathway](hsa04062.pathview.png)
+
+![Pathway](hsa05200.pathview.png)
 
 
 
