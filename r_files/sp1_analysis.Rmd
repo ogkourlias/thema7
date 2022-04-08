@@ -416,10 +416,9 @@ pathview(gene.data=res.logFC.ent,
          species="hsa"
 )
 ```
-The resulting pathway analysis for hsa04062.
 ![Pathway](hsa04062.pathview.png)
-The resulting pathway analysis for hsa05200.
 ![Pathway](hsa05200.pathview.png)
+The resulting pathway analysis for hsa04062 and hsa05200 above. 
   
 There's several affected molecules in these pathways, showing significant up regulation.
 The coloring is based on the corresponding logFC values.
