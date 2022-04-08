@@ -128,7 +128,9 @@ remove_rows <- c("__not_aligned", "__no_feature", "__no_feature",
 raw_data <- raw_data[!(row.names(raw_data) %in% remove_rows),]
 
 # Bar plotting the new data. Division by 1e6 shows the values in millions.
-barplot(colSums(raw_data) / 1e6, las = 2, cex.names = 0.8, col = c(rep(myColors[1],3), rep(myColors[2],3)), xlab = "Genes", ylab = "Expression in millions")
+barplot(colSums(raw_data) / 1e6, las = 2, cex.names = 0.8, 
+        col = c(rep(myColors[1],3), rep(myColors[2],3)), xlab = "Genes", 
+        ylab = "Expression in millions")
 ```
 
 Judging by that figure, the control group seems to have a higher average expression when summarised on all genes.
@@ -347,7 +349,7 @@ Extracting the pathway results into a chart allows a representing file to be dow
 
 ```{r}
 pathways <- read.table('chart.txt', header = TRUE, sep = '\t')
-pathways[1:5,]
+pathways[1,]
 ```
 As can be seen above, these are the five most significant pathway entries in this experiment.
 Pathway analysis, when done diligently, can be used to draw some conclusions.
@@ -416,8 +418,11 @@ pathview(gene.data=res.logFC.ent,
          species="hsa"
 )
 ```
+
 ![Pathway](hsa04062.pathview.png)
+
 ![Pathway](hsa05200.pathview.png)
+
 The resulting pathway analysis for hsa04062 and hsa05200 above. 
   
 There's several affected molecules in these pathways, showing significant up regulation.
@@ -425,7 +430,7 @@ The coloring is based on the corresponding logFC values.
 
 To close off this experiment, the topology of how gene interactions will be examined.
 The SPIA Bioconductor package is used in the following examinations.
-```{r}
+```{r, echo=FALSE, results='HIDE', message=FALSE}
 # Get a vector of log(FC) values for all significant genes
 sig_genes <- res.logFC.ent[,1]
 # Make it a named vector by assigning the Entrez ID's to each log(FC) value
@@ -438,7 +443,7 @@ spia_result <- spia(de=sig_genes, all=all_genes, organism="hsa", plots = TRUE)
 This concluded the experiment. Now, to show some of the results of the SPIA function:
 
 ```{r}
-spia_result[1:5]
+spia_result[1:5,1:4]
 ```
 
 
